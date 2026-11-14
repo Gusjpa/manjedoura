@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920">
+<title>Manjedoura Remote</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header><h1>Manjedoura Remote</h1><div id="conn" class="off">Conectando…</div></header>
+<main>
+  <section id="pairbox">
+    <p>No iPhone abra o endereço do relay e digite o código:</p>
+    <div id="code">----</div>
+    <p id="hint"></p>
+  </section>
+  <section id="tiles">
+    <div class="tile" tabindex="0">Tile 1</div><div class="tile" tabindex="0">Tile 2</div>
+    <div class="tile" tabindex="0">Tile 3</div><div class="tile" tabindex="0">Tile 4</div>
+    <div class="tile" tabindex="0">Tile 5</div><div class="tile" tabindex="0">Tile 6</div>
+  </section>
+  <section id="log"><h3>Último comando</h3><div id="last">—</div><div id="volume"></div></section>
+</main>
+<script src="$WEBAPIS/webapis/webapis.js"></script>
+<script src="config.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

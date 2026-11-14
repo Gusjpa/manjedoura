@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="manifest" href="manifest.json">
+<title>Remote</title>
+<style>
+  :root { --bg:#111; --btn:#262626; --acc:#1e88e5; color-scheme: dark; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  body { margin:0; background:var(--bg); color:#eee; font:16px -apple-system,sans-serif;
+    padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom); max-width:420px; margin:auto; }
+  #pair { padding-top:20vh; text-align:center; }
+  #pair input { font-size:32px; width:8ch; text-align:center; letter-spacing:.3em; padding:10px;
+    background:var(--btn); color:#fff; border:0; border-radius:12px; }
+  button { font-size:20px; background:var(--btn); color:#fff; border:0; border-radius:16px;
+    padding:18px 0; touch-action:manipulation; }
+  button:active { background:var(--acc); }
+  #status { text-align:center; padding:12px; font-size:14px; color:#999; }
+  #status.on { color:#4caf50; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:10px 0; }
+  .dpad { grid-template-columns:repeat(3,1fr); }
+  .dpad .ok { background:var(--acc); border-radius:50%; }
+  .num { grid-template-columns:repeat(3,1fr); }
+  #remote { display:none; } #pair button { margin-top:16px; padding:14px 40px; }
+  #txt { display:flex; gap:8px; margin:10px 0; }
+  #txt input { flex:1; padding:12px; font-size:16px; border-radius:12px; border:0; background:var(--btn); color:#fff; }
+  #txt button { padding:12px 18px; }
+</style>
+</head>
+<body>
+<div id="status">Desconectado</div>
+
+<div id="pair">
+  <p>Digite o código mostrado na TV</p>
+  <input id="code" inputmode="numeric" maxlength="4" autocomplete="off">
+  <br><button id="go">Conectar</button>
+</div>
+
+<div id="remote">
+  <div class="grid dpad">
+    <button data-k="BACK">⮌</button><button data-k="UP" data-r>▲</button><button data-k="HOME">⌂</button>
+    <button data-k="LEFT" data-r>◀</button><button data-k="OK" class="ok">OK</button><button data-k="RIGHT" data-r>▶</button>
+    <button data-k="MENU">☰</button><button data-k="DOWN" data-r>▼</button><button data-k="MUTE">🔇</button>
+  </div>
+  <div class="grid">
+    <button data-k="REW">⏪</button><button data-k="PLAY">▶❚</button><button data-k="FF">⏩</button>
+    <button data-k="VOL_DOWN" data-r>Vol −</button><button data-k="PAUSE">❚❚</button><button data-k="VOL_UP" data-r>Vol +</button>
+  </div>
+  <div class="grid num">
+    <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+    <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+    <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+    <span></span><button data-k="0">0</button><span></span>
+  </div>
+  <form id="txt"><input id="t" placeholder="Enviar texto para a TV"><button>Enviar</button></form>
+</div>
+
+<script>
+let ws, code = localStorage.getItem('code') || '';
+const $ = (id) => document.getElementById(id);
+const status = (t, on) => { $('status').textContent = t; $('status').className = on ? 'on' : ''; };
+$('code').value = code;
+
+function connect() {
+  ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
+  ws.onopen = () => ws.send(JSON.stringify({ type: 'phone-join', code }));
+  ws.onmessage = (e) => {
+    const m = JSON.parse(e.data);
+    if (m.type === 'joined') {
+      localStorage.setItem('code', code);
+      $('pair').style.display = 'none'; $('remote').style.display = 'block';
+      status(m.tvOnline ? 'TV conectada' : 'Aguardando TV…', m.tvOnline);
+    } else if (m.type === 'tv-online') status('TV conectada', true);
+    else if (m.type === 'tv-offline') status('TV offline', false);
+    else if (m.type === 'error') status(m.error, false);
+  };
+  ws.onclose = () => { status('Reconectando…', false); setTimeout(connect, 2000); };
+}
+$('go').onclick = () => { code = $('code').value.trim(); if (code.length === 4) { if (ws) ws.onclose = null, ws.close(); connect(); } };
+if (code.length === 4) connect();
+
+const send = (o) => ws && ws.readyState === 1 && ws.send(JSON.stringify(o));
+document.querySelectorAll('[data-k]').forEach((b) => {
+  let timer;
+  const fire = () => { send({ type: 'key', key: b.dataset.k }); if (navigator.vibrate) navigator.vibrate(8); };
+  b.addEventListener('pointerdown', () => {
+    fire();
+    if (b.hasAttribute('data-r')) timer = setInterval(fire, 150); // repete ao segurar
+  });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => b.addEventListener(ev, () => clearInterval(timer)));
+});
+$('txt').onsubmit = (e) => { e.preventDefault(); send({ type: 'text', text: $('t').value }); $('t').value = ''; };
+</script>
+</body>
+</html>
